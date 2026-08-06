@@ -5,6 +5,7 @@ import os
 from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
 
+from bot.middlewares import AccessControlMiddleware
 from bot.routers.callbacks import router as callbacks_router
 from bot.routers.commands import router as commands_router
 from bot.routers.dialog import router as dialog_router
@@ -22,6 +23,7 @@ async def main() -> None:
     session = AiohttpSession(proxy=proxy_url) if proxy_url else None
     bot = Bot(token=settings.telegram_bot_token, session=session)
     dp = Dispatcher()
+    dp.update.outer_middleware(AccessControlMiddleware())
     dp.include_router(commands_router)
     dp.include_router(reporting_router)
     dp.include_router(callbacks_router)

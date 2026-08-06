@@ -25,7 +25,7 @@ CREATE TABLE categories (
     name VARCHAR(255) NOT NULL,
     type VARCHAR(20) NOT NULL CHECK (type IN ('income', 'expense')),
     created_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE (organization_id, name)
+    UNIQUE (organization_id, name, type)
 );
 
 -- Контрагенты (глобальные, без привязки к объекту)

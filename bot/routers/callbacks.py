@@ -51,6 +51,17 @@ async def on_category_select(callback: CallbackQuery, state: FSMContext) -> None
     await ask_next_clarification(callback.message, state)
 
 
+@router.callback_query(TransactionFlow.clarifying, F.data == "counterparty_skip")
+async def on_counterparty_skip(callback: CallbackQuery, state: FSMContext) -> None:
+    data = await state.get_data()
+    parsed = data["parsed"]
+    parsed["counterparty"] = None
+    await state.update_data(parsed=parsed)
+    await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.answer()
+    await ask_next_clarification(callback.message, state)
+
+
 @router.callback_query(TransactionFlow.clarifying, F.data == "category_custom")
 async def on_category_custom(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.message.edit_reply_markup(reply_markup=None)

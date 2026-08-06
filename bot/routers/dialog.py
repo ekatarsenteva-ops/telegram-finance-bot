@@ -19,7 +19,8 @@ ORGANIZATION_NAMES = {1: "Школа языков", 2: "Недвижимость
 
 CLARIFICATION_PROMPTS = {
     "organization_id": "Для какого объекта: Школа (1) или Недвижимость (2)?",
-    "counterparty": "Уточните, пожалуйста, контрагента (кто внес/кто получил)?",
+    "counterparty": "Уточните, пожалуйста, контрагента (кто внес/кто получил)? "
+    "Напишите имя текстом или нажмите кнопку ниже, если контрагент не нужен.",
     "category": "Уточните категорию операции?",
     "amount": "Уточните сумму (цифра в рублях)?",
     "date": "Уточните дату операции (ГГГГ-ММ-ДД)?",
@@ -36,17 +37,19 @@ def _sorted_clarifications(fields: list[str]) -> list[str]:
     return known + unknown
 
 
-def _try_extract_repayment(text: str) -> str | None:
-    words = text.strip().split()
-    if not words:
-        return None
-    first = words[0].strip(",.!?")
-    if not first or not first[0].isupper():
-        return None
+async def _try_extract_repayment(text: str) -> str | None:
     lowered = text.lower()
-    if any(keyword in lowered for keyword in REPAYMENT_KEYWORDS):
-        return first
-    return None
+    if not any(keyword in lowered for keyword in REPAYMENT_KEYWORDS):
+        return None
+
+    debts = await expense_splits.get_debt_summary()
+    candidates = [debt["person_name"] for debt in debts]
+
+    for name in candidates:
+        if re.search(rf"(?<!\w){re.escape(name.lower())}(?!\w)", lowered):
+            return name
+
+    return claude_parser.match_repayment_name(text, candidates)
 
 
 def _extract_amount(text: str) -> float | None:
@@ -62,7 +65,7 @@ def _extract_amount(text: str) -> float | None:
 
 @router.message(StateFilter(None), F.text, ~F.text.startswith("/"))
 async def handle_free_text(message: Message, state: FSMContext) -> None:
-    repayment_name = _try_extract_repayment(message.text)
+    repayment_name = await _try_extract_repayment(message.text)
     if repayment_name:
         updated = await expense_splits.mark_participant_paid(repayment_name)
         if updated:
@@ -117,6 +120,15 @@ async def ask_next_clarification(message: Message, state: FSMContext) -> None:
         await message.answer(CLARIFICATION_PROMPTS[field], reply_markup=keyboard)
         return
 
+    if field == "counterparty":
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="Без контрагента", callback_data="counterparty_skip")]
+            ]
+        )
+        await message.answer(CLARIFICATION_PROMPTS[field], reply_markup=keyboard)
+        return
+
     if field == "category":
         parsed = data.get("parsed", {})
         organization_id = parsed.get("organization_id")
@@ -156,6 +168,15 @@ async def handle_clarification_answer(message: Message, state: FSMContext) -> No
             await message.answer("Укажите 1 (Школа) или 2 (Недвижимость).")
             return
         parsed["organization_id"] = int(digits.group(0))
+    elif field == "counterparty":
+        text = message.text.strip()
+        if len(text.split()) > 4 or any(ch.isdigit() for ch in text):
+            await message.answer(
+                "Похоже, это не имя. Напишите короткое имя/название контрагента "
+                "или нажмите «Без контрагента»."
+            )
+            return
+        parsed["counterparty"] = text
     else:
         parsed[field] = message.text.strip()
 
