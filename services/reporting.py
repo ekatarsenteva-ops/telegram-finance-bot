@@ -22,6 +22,12 @@ TYPE_LABELS = {
     "incoming_payment": "платёж",
 }
 
+STATUS_LABELS = {
+    "income": "приход",
+    "incoming_payment": "приход",
+    "expense": "расход",
+}
+
 
 def format_balance(balances: list[dict]) -> str:
     if not balances:
@@ -67,7 +73,7 @@ async def generate_excel(start_date: str, end_date: str) -> io.BytesIO:
 
     group_ids = []
     for t in transactions:
-        status = "взаимозачёт" if t["is_offset"] else TYPE_LABELS[t["type"]]
+        status = "взаимозачёт" if t["is_offset"] else STATUS_LABELS[t["type"]]
         ws.append(
             [
                 t["date"].isoformat(),

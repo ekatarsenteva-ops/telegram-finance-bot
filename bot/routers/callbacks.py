@@ -80,7 +80,7 @@ async def on_offset_apply(callback: CallbackQuery, state: FSMContext) -> None:
 
     if decision == "yes":
         open_offsets = data["open_offsets"]
-        total = sum(o["amount"] for o in open_offsets)
+        total = float(sum(o["amount"] for o in open_offsets))
         parsed["amount"] = max(parsed["amount"] - total, 0)
         await state.update_data(parsed=parsed, offsets_to_apply=open_offsets)
         await callback.message.answer(f"Зачёт на {total:g}₽ будет применён к платежу.")

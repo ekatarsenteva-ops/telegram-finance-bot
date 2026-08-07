@@ -60,7 +60,7 @@ async def get_or_create_category(organization_id: int, name: str, type_: str) ->
     async with pool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
-                "SELECT * FROM categories WHERE organization_id = %s AND name = %s",
+                "SELECT * FROM categories WHERE organization_id = %s AND lower(name) = lower(%s)",
                 (organization_id, name),
             )
             row = await cur.fetchone()
@@ -84,7 +84,7 @@ async def get_or_create_counterparty(name: str) -> dict:
     async with pool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
-                "SELECT * FROM counterparties WHERE name = %s", (name,)
+                "SELECT * FROM counterparties WHERE lower(name) = lower(%s)", (name,)
             )
             row = await cur.fetchone()
             if row:
